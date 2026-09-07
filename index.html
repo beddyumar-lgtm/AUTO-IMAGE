@@ -1045,11 +1045,14 @@
                     if (item.status === 'failed') {
                         return `
                             <div class="bg-slate-800 border border-red-900/50 rounded-2xl overflow-hidden shadow-lg flex flex-col h-64 justify-center items-center text-center p-4">
-                                <i class="fa-solid fa-triangle-exclamation text-red-500 text-3xl mb-2"></i>
+                                <i class="fa-solid fa-triangle-exclamation text-red-500 text-3xl mb-2 cursor-pointer hover:text-red-400 transition-colors" onclick="Utils.showAlert('Error Details', \`${(item.error || 'Unknown Error').replace(/`/g, "'")}\`)" title="Click to view error details"></i>
                                 <p class="text-white text-sm font-medium mb-1">Generation Failed</p>
                                 <p class="text-xs text-slate-500 line-clamp-2 mb-3">${item.originalPrompt}</p>
-                                <button onclick="App.retrySingleFromGallery('${item.id}')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg transition-colors">
+                                <button onclick="App.retrySingleFromGallery('${item.id}')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg transition-colors mb-2">
                                     <i class="fa-solid fa-rotate-right"></i> Retry
+                                </button>
+                                <button onclick="Utils.showAlert('Error Details', \`${(item.error || 'Unknown Error').replace(/`/g, "'")}\`)" class="text-xs text-red-400 hover:text-red-300 underline mt-1">
+                                    View Error Reason
                                 </button>
                             </div>
                         `;
