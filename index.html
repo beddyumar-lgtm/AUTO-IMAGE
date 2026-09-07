@@ -354,8 +354,15 @@
                         </h3>
                         <div>
                             <label class="block text-sm font-medium text-slate-400 mb-2">Gemini API Key</label>
-                            <input type="password" id="setting-api-key" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm" placeholder="Leave empty for Canvas default...">
-                            <p class="text-xs text-slate-500 mt-2">The application uses Gemini 3.1 Flash Image. Leave blank if running within Google Canvas environment.</p>
+                            <input type="password" id="setting-api-key" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm" placeholder="Paste your Google Gemini API Key here...">
+                            <p class="text-xs text-slate-500 mt-2">Your key is only saved locally in your browser.</p>
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-slate-400 mb-2">AI Model Selection</label>
+                            <select id="setting-model" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="gemini-3.1-flash-image">Gemini 3.1 Flash Image (High Quality)</option>
+                                <option value="gemini-3.1-flash-lite-image">Gemini 3.1 Flash Lite Image (Fast / Alternative)</option>
+                            </select>
                         </div>
                     </div>
 
@@ -821,8 +828,8 @@
                             statusHtml = `<span class="px-2 py-1 bg-green-900/30 border border-green-800 text-green-400 rounded text-xs font-medium">COMPLETED</span>`;
                             break;
                         case 'failed':
-                            statusHtml = `<span class="px-2 py-1 bg-red-900/30 border border-red-800 text-red-400 rounded text-xs font-medium cursor-help" title="${item.error || 'Unknown Error'}">FAILED</span>`;
-                            actionHtml = `<button class="text-slate-400 hover:text-blue-400 transition-colors mr-2" onclick="App.retryQueueItem('${item.id}')" title="Retry"><i class="fa-solid fa-rotate-right"></i></button>`;
+                            statusHtml = `<span class="px-2 py-1 bg-red-900/30 border border-red-800 text-red-400 rounded text-xs font-medium cursor-pointer hover:bg-red-900/50 transition-colors" onclick="Utils.showAlert('Google API Error Detail', \`${(item.error || 'Unknown Error').replace(/`/g, "'")}\`)" title="Click to see error details">FAILED (Click)</span>`;
+                            actionHtml = `<button class="text-slate-400 hover:text-blue-400 transition-colors mr-2" onclick="App.retryQueueItem('${item.id}')" title="Retry"><i class="fa-solid fa-rotate-right"></i></button><button class="text-slate-400 hover:text-red-400 transition-colors" onclick="App.removeFromQueue('${item.id}')"><i class="fa-solid fa-trash"></i></button>`;
                             break;
                     }
 
@@ -943,9 +950,18 @@
                 this.renderQueue(); // Update UI to show generating status
 
                 try {
-                    // API Call to Gemini 3.1 Flash Image
-                    const apiKey = Store.settings.apiKey || ""; 
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
+                    // API Call to Gemini Image Model
+                    const apiKeyInput = document.getElementById('setting-api-key');
+                    const apiKey = (apiKeyInput ? apiKeyInput.value.trim() : Store.settings.apiKey) || ""; 
+                    
+                    if (!apiKey) {
+                        throw new Error("API Key is missing! Please go to Settings and enter your Gemini API Key.");
+                    }
+
+                    const modelSelect = document.getElementById('setting-model');
+                    const selectedModel = modelSelect ? modelSelect.value : 'gemini-3.1-flash-image';
+                    
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
                     
                     const payload = {
                         contents: [{
@@ -969,7 +985,8 @@
 
                     if (!response.ok) {
                         const errData = await response.json().catch(()=>({}));
-                        throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+                        const errMsg = errData?.error?.message || `HTTP Error ${response.status}: Failed to reach Google API`;
+                        throw new Error(errMsg);
                     }
 
                     const result = await response.json();
