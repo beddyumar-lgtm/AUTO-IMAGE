@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEBBY AUTOMATION FLOW</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .loader {
+            border: 3px solid #1e293b;
+            border-bottom-color: #3b82f6;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 h-screen overflow-hidden flex selection:bg-blue-500 selection:text-white">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full flex-shrink-0 relative z-20">
+        <div class="p-6 border-b border-slate-800">
+            <h1 class="text-xl font-bold text-white tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-blue-500"></i> DEBBY
+            </h1>
+            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Automation Flow</p>
+            <div class="mt-4 flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full w-fit">
+                <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
+                <span class="text-xs font-medium text-green-400" id="status-indicator">READY</span>
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto p-4 space-y-2">
+            <button data-target="view-create" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600 text-white font-medium transition-all shadow-lg shadow-blue-900/20">
+                <i class="fa-solid fa-pen-nib w-5"></i> Create
+            </button>
+            <button data-target="view-queue" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                <i class="fa-solid fa-list-ol w-5"></i> Prompt Queue
+                <span id="nav-queue-count" class="ml-auto bg-slate-800 text-xs py-0.5 px-2 rounded-full hidden">0</span>
+            </button>
+            <button data-target="view-gallery" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                <i class="fa-solid fa-images w-5"></i> Generated Images
+                <span id="nav-gallery-count" class="ml-auto bg-slate-800 text-xs py-0.5 px-2 rounded-full hidden">0</span>
+            </button>
+            <button data-target="view-history" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                <i class="fa-solid fa-clock-rotate-left w-5"></i> History
+            </button>
+            <button data-target="view-settings" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                <i class="fa-solid fa-gear w-5"></i> Settings
+            </button>
+        </nav>
+        
+        <div class="p-4 border-t border-slate-800 text-xs text-center text-slate-500">
+            DEBBY AUTOMATION FLOW<br>&copy; 2026 Batch Generator
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        
+        <!-- CUSTOM MODAL OVERLAY (Replaces Alert/Confirm) -->
+        <div id="custom-modal" class="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center opacity-0 transition-opacity duration-200">
+            <div class="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-200" id="custom-modal-content">
+                <h3 id="modal-title" class="text-lg font-bold text-white mb-2">Title</h3>
+                <p id="modal-message" class="text-slate-300 text-sm mb-6">Message goes here...</p>
+                <div class="flex justify-end gap-3" id="modal-actions">
+                    <button id="modal-btn-cancel" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-sm transition-colors">Cancel</button>
+                    <button id="modal-btn-confirm" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 font-medium text-sm transition-colors shadow-lg shadow-blue-500/30">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FULLSCREEN IMAGE PREVIEW MODAL -->
+        <div id="preview-modal" class="absolute inset-0 z-40 bg-slate-950/95 hidden flex-col opacity-0 transition-opacity duration-300">
+            <div class="flex justify-between items-center p-4 border-b border-slate-800">
+                <div class="text-sm text-slate-400" id="preview-meta">Image #001</div>
+                <button id="btn-close-preview" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex-1 p-4 flex items-center justify-center overflow-hidden">
+                <img id="preview-image-element" src="" alt="Preview" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl">
+            </div>
+            <div class="p-6 bg-slate-900 border-t border-slate-800">
+                <p class="text-white font-medium mb-4" id="preview-prompt-text">Prompt text goes here...</p>
+                <div class="flex gap-3">
+                    <button id="btn-preview-download" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium text-sm flex items-center gap-2 transition-colors">
+                        <i class="fa-solid fa-download"></i> Download
+                    </button>
+                    <button id="btn-preview-regenerate" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium text-sm flex items-center gap-2 transition-colors">
+                        <i class="fa-solid fa-rotate-right"></i> Regenerate
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 scroll-smooth" id="main-scroll-area">
+            
+            <!-- VIEW: CREATE -->
+            <section id="view-create" class="view-section max-w-5xl mx-auto space-y-8 block">
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white tracking-tight">Create Batch</h2>
+                        <p class="text-slate-400 mt-1">Upload files or type multiple prompts to start generation.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Input -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-keyboard text-slate-400"></i> Prompt Input
+                                </label>
+                                <div class="flex gap-2">
+                                    <input type="file" id="file-upload" accept=".txt,.csv,.json" class="hidden">
+                                    <button id="btn-upload-file" class="text-xs px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-200 transition-colors flex items-center gap-2">
+                                        <i class="fa-solid fa-file-arrow-up"></i> Upload TXT/CSV/JSON
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="prompt-input" rows="8" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-y" placeholder="Enter multiple prompts here...&#10;Each line is considered one prompt.&#10;&#10;Example:&#10;A beautiful modern coffee shop in Jakarta, cinematic photography&#10;A luxury sports car on a mountain road, sunset"></textarea>
+                            <div class="mt-4 flex justify-between items-center">
+                                <span class="text-xs text-slate-500">Drag & Drop files supported</span>
+                                <button id="btn-add-to-queue" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2">
+                                    <i class="fa-solid fa-list-check"></i> Add to Queue
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Style Selection -->
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-slate-400"></i> Image Style & Category
+                                </label>
+                                <span class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">Max 3</span>
+                            </div>
+                            
+                            <!-- Style Tabs/Filters -->
+                            <div class="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+                                <button class="style-tab-btn px-4 py-1.5 rounded-full bg-blue-600 text-white text-sm whitespace-nowrap" data-filter="all">All Styles</button>
+                                <button class="style-tab-btn px-4 py-1.5 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm whitespace-nowrap" data-filter="vector">Vector</button>
+                                <button class="style-tab-btn px-4 py-1.5 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm whitespace-nowrap" data-filter="3d">3D</button>
+                                <button class="style-tab-btn px-4 py-1.5 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm whitespace-nowrap" data-filter="photo">Photography</button>
+                            </div>
+
+                            <!-- Style Grid -->
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="style-grid">
+                                <!-- Generated by JS -->
+                            </div>
+                            
+                            <div class="mt-4 pt-4 border-t border-slate-700 flex justify-between items-center">
+                                <p class="text-sm text-slate-400">Selected: <span id="selected-styles-text" class="text-white font-medium">None</span></p>
+                                <button id="btn-clear-styles" class="text-xs text-red-400 hover:text-red-300 hidden">Clear Styles</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Settings -->
+                    <div class="space-y-6">
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                            <h3 class="font-semibold text-white flex items-center gap-2 mb-5">
+                                <i class="fa-solid fa-sliders text-slate-400"></i> Batch Settings
+                            </h3>
+                            
+                            <div class="space-y-5">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-2">Images Per Prompt</label>
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <button class="setting-img-count py-2 border border-blue-500 bg-blue-900/30 text-blue-400 rounded-lg text-sm font-medium" data-val="1">1</button>
+                                        <button class="setting-img-count py-2 border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium" data-val="2">2</button>
+                                        <button class="setting-img-count py-2 border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium" data-val="4">4</button>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-2">Aspect Ratio</label>
+                                    <select id="setting-aspect" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                        <option value="1:1">1:1 (Square)</option>
+                                        <option value="16:9">16:9 (Landscape)</option>
+                                        <option value="9:16">9:16 (Portrait)</option>
+                                        <option value="4:3">4:3</option>
+                                        <option value="3:4">3:4</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-2">Global Prefix (Prepended to all)</label>
+                                    <input type="text" id="setting-prefix" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600" placeholder="e.g. Masterpiece, high quality, ">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-400 mb-2">Global Suffix (Appended to all)</label>
+                                    <input type="text" id="setting-suffix" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600" placeholder="e.g. , 8k resolution, highly detailed">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: QUEUE -->
+            <section id="view-queue" class="view-section hidden flex-col h-full space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white tracking-tight">Prompt Queue</h2>
+                        <p class="text-slate-400 mt-1">Review and generate your prompts.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button id="btn-clear-queue" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-red-400 rounded-xl font-medium transition-all text-sm border border-slate-700">
+                            Clear Queue
+                        </button>
+                        <button id="btn-generate-all" class="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-green-600/20 flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i> Generate All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Panel (Hidden initially) -->
+                <div id="queue-progress-panel" class="hidden shrink-0 bg-slate-800 border border-slate-700 rounded-2xl p-5 mb-4 shadow-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-semibold text-white" id="progress-text">Generating... 0 / 10</span>
+                        <span class="text-blue-400 font-bold" id="progress-percentage">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                        <div id="progress-bar-fill" class="bg-blue-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div class="flex gap-4 mt-3 text-xs text-slate-400" id="progress-stats">
+                        <span><i class="fa-solid fa-check text-green-500"></i> <span id="stat-completed">0</span> Completed</span>
+                        <span><i class="fa-solid fa-xmark text-red-500"></i> <span id="stat-failed">0</span> Failed</span>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden flex flex-col min-h-[400px]">
+                    <div class="overflow-x-auto flex-1">
+                        <table class="w-full text-left text-sm text-slate-300">
+                            <thead class="text-xs text-slate-400 uppercase bg-slate-900/50 sticky top-0 z-10 border-b border-slate-700">
+                                <tr>
+                                    <th scope="col" class="px-6 py-4 font-semibold">#</th>
+                                    <th scope="col" class="px-6 py-4 font-semibold w-1/2">Prompt</th>
+                                    <th scope="col" class="px-6 py-4 font-semibold">Status</th>
+                                    <th scope="col" class="px-6 py-4 font-semibold text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="queue-table-body" class="divide-y divide-slate-700/50">
+                                <!-- Queue rows generated by JS -->
+                                <tr><td colspan="4" class="px-6 py-12 text-center text-slate-500">Queue is empty. Go to Create to add prompts.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: GALLERY -->
+            <section id="view-gallery" class="view-section hidden flex-col h-full space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white tracking-tight">Generated Images</h2>
+                        <p class="text-slate-400 mt-1">View, manage, and download your results.</p>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-3 items-center">
+                        <div class="bg-slate-800 rounded-lg p-1 flex mr-2">
+                            <button class="gallery-filter-btn px-3 py-1.5 text-xs font-medium rounded-md bg-slate-700 text-white" data-filter="all">All</button>
+                            <button class="gallery-filter-btn px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white" data-filter="completed">Completed</button>
+                            <button class="gallery-filter-btn px-3 py-1.5 text-xs font-medium rounded-md text-slate-400 hover:text-white" data-filter="failed">Failed</button>
+                        </div>
+
+                        <button id="btn-gallery-select-all" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all text-sm border border-slate-700">
+                            Select All
+                        </button>
+                        <button id="btn-download-selected" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all text-sm border border-slate-700 hidden items-center gap-2">
+                            <i class="fa-solid fa-download"></i> <span id="download-selected-count">Download (0)</span>
+                        </button>
+                        <button id="btn-download-all" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2">
+                            <i class="fa-solid fa-file-zipper"></i> Download All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Download Progress Bar (Hidden initially) -->
+                <div id="download-progress-panel" class="hidden shrink-0 bg-blue-900/30 border border-blue-800/50 rounded-2xl p-4 mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-semibold text-blue-200 text-sm flex items-center gap-2">
+                            <div class="loader w-4 h-4 border-2 border-blue-400 border-b-transparent"></div>
+                            <span id="dl-progress-text">Preparing ZIP...</span>
+                        </span>
+                    </div>
+                    <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-700">
+                        <div id="dl-progress-bar-fill" class="bg-blue-400 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto">
+                    <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
+                        <!-- Image cards generated by JS -->
+                        <div class="col-span-full py-20 text-center text-slate-500 bg-slate-800/20 border border-slate-800 border-dashed rounded-2xl">
+                            <i class="fa-solid fa-images text-4xl mb-3 text-slate-600"></i>
+                            <p>No images generated yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: HISTORY -->
+            <section id="view-history" class="view-section hidden flex-col h-full space-y-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-white tracking-tight">Batch History</h2>
+                    <p class="text-slate-400 mt-1">Review your past generation sessions.</p>
+                </div>
+                <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 text-center text-slate-500">
+                    <i class="fa-solid fa-clock-rotate-left text-3xl mb-3 text-slate-600"></i>
+                    <p>History feature will save your batches locally.<br>Currently tracking session memory only.</p>
+                </div>
+            </section>
+
+            <!-- VIEW: SETTINGS -->
+            <section id="view-settings" class="view-section hidden flex-col space-y-6 max-w-3xl mx-auto block">
+                <div>
+                    <h2 class="text-3xl font-bold text-white tracking-tight">Settings</h2>
+                    <p class="text-slate-400 mt-1">Configure application behavior and API keys.</p>
+                </div>
+                
+                <div class="space-y-6">
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                        <h3 class="font-semibold text-white flex items-center gap-2 mb-5">
+                            <i class="fa-solid fa-key text-yellow-500"></i> API Configuration
+                        </h3>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Gemini API Key</label>
+                            <input type="password" id="setting-api-key" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm" placeholder="Leave empty for Canvas default...">
+                            <p class="text-xs text-slate-500 mt-2">The application uses Gemini 3.1 Flash Image. Leave blank if running within Google Canvas environment.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                        <h3 class="font-semibold text-white flex items-center gap-2 mb-5">
+                            <i class="fa-solid fa-microchip text-slate-400"></i> Performance
+                        </h3>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Concurrent Generations (Parallel Tasks)</label>
+                            <div class="flex items-center gap-4">
+                                <input type="range" id="setting-concurrent" min="1" max="5" value="2" class="flex-1 accent-blue-500">
+                                <span id="setting-concurrent-val" class="w-8 text-center font-bold text-white bg-slate-700 rounded py-1 text-sm">2</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2">Higher values process faster but may hit API rate limits.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+                        <h3 class="font-semibold text-white flex items-center gap-2 mb-5">
+                            <i class="fa-solid fa-download text-slate-400"></i> Automation
+                        </h3>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="setting-auto-download" class="sr-only">
+                                <div class="w-10 h-6 bg-slate-700 rounded-full shadow-inner transition-colors" id="toggle-bg"></div>
+                                <div class="absolute w-4 h-4 bg-white rounded-full shadow inset-y-1 left-1 transition-transform" id="toggle-dot"></div>
+                            </div>
+                            <span class="text-sm font-medium text-slate-300">Auto Download ZIP when batch completes</span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- JAVASCRIPT ENGINE -->
+    <script>
+        // --- 1. STATE & DATA ---
+        const Store = {
+            queue: [], // { id, prompt, finalPrompt, status, resultBase64, error, styleConfig }
+            images: [],
+            settings: {
+                imagesPerPrompt: 1,
+                aspectRatio: "1:1",
+                prefix: "",
+                suffix: "",
+                concurrent: 2,
+                autoDownload: false,
+                selectedStyles: [],
+                apiKey: ""
+            }
+        };
+
+        const PRESET_STYLES = [
+            { id: 'flat', name: 'Flat Vector', category: 'vector', icon: 'fa-vector-square', desc: 'Clean shapes, bold colors' },
+            { id: 'isometric', name: 'Isometric 3D', category: '3d', icon: 'fa-cube', desc: '3D perspective, geometric' },
+            { id: 'photoreal', name: 'Photorealistic', category: 'photo', icon: 'fa-camera', desc: 'Realistic lighting, detailed' },
+            { id: 'anime', name: 'Anime Style', category: 'vector', icon: 'fa-pen-nib', desc: 'Japanese animation style' },
+            { id: 'clay', name: 'Claymation', category: '3d', icon: 'fa-shapes', desc: 'Soft clay texture, cute' },
+            { id: 'cinematic', name: 'Cinematic', category: 'photo', icon: 'fa-film', desc: 'Dramatic lighting, movie-like' },
+        ];
+
+        // --- 2. UTILITY FUNCTIONS ---
+        const Utils = {
+            generateId: () => Math.random().toString(36).substr(2, 9),
+            
+            cleanFilename: (str) => {
+                let name = str.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+                name = name.replace(/-+/g, '-').replace(/^-|-$/g, '');
+                return name.substring(0, 40) || 'image';
+            },
+
+            // Custom Modal Replacements for Alert/Confirm
+            showAlert: (title, message) => {
+                return new Promise((resolve) => {
+                    const modal = document.getElementById('custom-modal');
+                    const modalContent = document.getElementById('custom-modal-content');
+                    document.getElementById('modal-title').innerText = title;
+                    document.getElementById('modal-message').innerText = message;
+                    
+                    const btnCancel = document.getElementById('modal-btn-cancel');
+                    const btnConfirm = document.getElementById('modal-btn-confirm');
+                    
+                    btnCancel.classList.add('hidden'); // Hide cancel for simple alert
+                    btnConfirm.innerText = 'OK';
+                    
+                    const close = () => {
+                        modal.classList.add('opacity-0');
+                        modalContent.classList.add('scale-95');
+                        setTimeout(() => modal.classList.add('hidden'), 200);
+                        btnConfirm.removeEventListener('click', close);
+                        resolve(true);
+                    };
+                    
+                    btnConfirm.addEventListener('click', close);
+                    
+                    modal.classList.remove('hidden');
+                    setTimeout(() => {
+                        modal.classList.remove('opacity-0');
+                        modalContent.classList.remove('scale-95');
+                    }, 10);
+                });
+            },
+
+            showConfirm: (title, message) => {
+                return new Promise((resolve) => {
+                    const modal = document.getElementById('custom-modal');
+                    const modalContent = document.getElementById('custom-modal-content');
+                    document.getElementById('modal-title').innerText = title;
+                    document.getElementById('modal-message').innerText = message;
+                    
+                    const btnCancel = document.getElementById('modal-btn-cancel');
+                    const btnConfirm = document.getElementById('modal-btn-confirm');
+                    
+                    btnCancel.classList.remove('hidden');
+                    btnConfirm.innerText = 'Confirm';
+                    
+                    const cleanup = () => {
+                        modal.classList.add('opacity-0');
+                        modalContent.classList.add('scale-95');
+                        setTimeout(() => modal.classList.add('hidden'), 200);
+                        btnConfirm.removeEventListener('click', onConfirm);
+                        btnCancel.removeEventListener('click', onCancel);
+                    };
+                    
+                    const onConfirm = () => { cleanup(); resolve(true); };
+                    const onCancel = () => { cleanup(); resolve(false); };
+                    
+                    btnConfirm.addEventListener('click', onConfirm);
+                    btnCancel.addEventListener('click', onCancel);
+                    
+                    modal.classList.remove('hidden');
+                    setTimeout(() => {
+                        modal.classList.remove('opacity-0');
+                        modalContent.classList.remove('scale-95');
+                    }, 10);
+                });
+            }
+        };
+
+        // --- 3. MAIN APPLICATION LOGIC ---
+        const App = {
+            
+            init: function() {
+                try {
+                    this.bindNavigation();
+                    this.bindEvents();
+                    this.renderStyles();
+                    this.updateCounters();
+                    this.switchView('create'); // Default view
+                    console.log('App Initialized successfully.');
+                } catch (e) {
+                    console.error('Initialization Error:', e);
+                }
+            },
+
+            // Safe navigation switching
+            switchView: function(viewId) {
+                // Hide all views safely
+                document.querySelectorAll('.view-section').forEach(el => {
+                    el.classList.add('hidden');
+                    el.classList.remove('block', 'flex'); // clear displays
+                });
+                
+                // Show target safely
+                const target = document.getElementById(viewId);
+                if (target) {
+                    target.classList.remove('hidden');
+                    // Add appropriate display class
+                    if (viewId === 'view-queue' || viewId === 'view-gallery') {
+                        target.classList.add('flex'); 
+                    } else {
+                        target.classList.add('block');
+                    }
+                }
+
+                // Update sidebar active state safely
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    if (btn.getAttribute('data-target') === viewId) {
+                        btn.classList.remove('text-slate-400', 'hover:bg-slate-800');
+                        btn.classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-900/20');
+                    } else {
+                        btn.classList.add('text-slate-400', 'hover:bg-slate-800');
+                        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-900/20');
+                    }
+                });
+            },
+
+            // Safely bind navigation clicks
+            bindNavigation: function() {
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const targetId = e.currentTarget.getAttribute('data-target');
+                        if (targetId) this.switchView(targetId);
+                    });
+                });
+            },
+
+            // Safely bind all action events
+            bindEvents: function() {
+                const safeBind = (id, event, fn) => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener(event, fn);
+                };
+
+                // --- Settings Binding ---
+                document.querySelectorAll('.setting-img-count').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.setting-img-count').forEach(b => {
+                            b.classList.remove('border-blue-500', 'bg-blue-900/30', 'text-blue-400');
+                            b.classList.add('border-slate-700', 'bg-slate-800', 'text-slate-300');
+                        });
+                        e.target.classList.add('border-blue-500', 'bg-blue-900/30', 'text-blue-400');
+                        e.target.classList.remove('border-slate-700', 'bg-slate-800', 'text-slate-300');
+                        Store.settings.imagesPerPrompt = parseInt(e.target.dataset.val);
+                    });
+                });
+
+                safeBind('setting-aspect', 'change', (e) => Store.settings.aspectRatio = e.target.value);
+                safeBind('setting-prefix', 'input', (e) => Store.settings.prefix = e.target.value);
+                safeBind('setting-suffix', 'input', (e) => Store.settings.suffix = e.target.value);
+                safeBind('setting-api-key', 'input', (e) => Store.settings.apiKey = e.target.value);
+                
+                safeBind('setting-concurrent', 'input', (e) => {
+                    Store.settings.concurrent = parseInt(e.target.value);
+                    const valEl = document.getElementById('setting-concurrent-val');
+                    if(valEl) valEl.innerText = Store.settings.concurrent;
+                });
+
+                safeBind('setting-auto-download', 'change', (e) => {
+                    Store.settings.autoDownload = e.target.checked;
+                    const bg = document.getElementById('toggle-bg');
+                    const dot = document.getElementById('toggle-dot');
+                    if(e.target.checked) {
+                        bg.classList.replace('bg-slate-700', 'bg-blue-600');
+                        dot.classList.add('translate-x-4');
+                    } else {
+                        bg.classList.replace('bg-blue-600', 'bg-slate-700');
+                        dot.classList.remove('translate-x-4');
+                    }
+                });
+
+                // --- Action Binding ---
+                safeBind('btn-add-to-queue', 'click', () => {
+                    const input = document.getElementById('prompt-input');
+                    if(input && input.value.trim() !== '') {
+                        this.processRawPrompts(input.value);
+                        input.value = ''; // clear
+                        this.switchView('view-queue');
+                    }
+                });
+
+                safeBind('btn-upload-file', 'click', () => {
+                    document.getElementById('file-upload').click();
+                });
+
+                safeBind('file-upload', 'change', (e) => this.handleFileUpload(e));
+
+                safeBind('btn-clear-queue', 'click', async () => {
+                    if(Store.queue.length === 0) return;
+                    const confirmed = await Utils.showConfirm('Clear Queue', 'Are you sure you want to remove all prompts from the queue?');
+                    if (confirmed) {
+                        Store.queue = [];
+                        this.renderQueue();
+                        this.updateCounters();
+                    }
+                });
+
+                safeBind('btn-generate-all', 'click', () => this.startGenerationBatch());
+                
+                // Gallery Actions
+                safeBind('btn-download-all', 'click', () => this.downloadAllZIP());
+                safeBind('btn-gallery-select-all', 'click', () => this.toggleGallerySelection());
+                safeBind('btn-download-selected', 'click', () => this.downloadSelectedZIP());
+
+                // Gallery Filters
+                document.querySelectorAll('.gallery-filter-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.gallery-filter-btn').forEach(b => {
+                            b.classList.remove('bg-slate-700', 'text-white');
+                            b.classList.add('text-slate-400');
+                        });
+                        e.target.classList.add('bg-slate-700', 'text-white');
+                        e.target.classList.remove('text-slate-400');
+                        this.renderGallery(e.target.dataset.filter);
+                    });
+                });
+
+                // Preview Modal
+                safeBind('btn-close-preview', 'click', () => {
+                    const modal = document.getElementById('preview-modal');
+                    modal.classList.add('opacity-0');
+                    setTimeout(() => modal.classList.add('hidden'), 300);
+                });
+            },
+
+            renderStyles: function() {
+                const grid = document.getElementById('style-grid');
+                if(!grid) return;
+                
+                grid.innerHTML = PRESET_STYLES.map(style => `
+                    <div class="style-card bg-slate-900 border border-slate-700 rounded-xl p-3 cursor-pointer hover:border-blue-500 transition-colors relative" data-id="${style.id}">
+                        <div class="absolute top-2 right-2 text-blue-500 opacity-0 transition-opacity check-icon">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <i class="fa-solid ${style.icon} text-slate-400 mb-2 text-lg"></i>
+                        <h4 class="text-white text-sm font-semibold">${style.name}</h4>
+                        <p class="text-slate-500 text-xs mt-1 leading-tight">${style.desc}</p>
+                    </div>
+                `).join('');
+
+                document.querySelectorAll('.style-card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        const id = e.currentTarget.dataset.id;
+                        const idx = Store.settings.selectedStyles.indexOf(id);
+                        
+                        if (idx > -1) {
+                            // Remove
+                            Store.settings.selectedStyles.splice(idx, 1);
+                            e.currentTarget.classList.remove('border-blue-500', 'bg-blue-900/20');
+                            e.currentTarget.classList.add('border-slate-700', 'bg-slate-900');
+                            e.currentTarget.querySelector('.check-icon').classList.add('opacity-0');
+                        } else {
+                            // Add (Max 3)
+                            if (Store.settings.selectedStyles.length >= 3) {
+                                Utils.showAlert('Limit Reached', 'You can only select up to 3 styles to combine.');
+                                return;
+                            }
+                            Store.settings.selectedStyles.push(id);
+                            e.currentTarget.classList.add('border-blue-500', 'bg-blue-900/20');
+                            e.currentTarget.classList.remove('border-slate-700', 'bg-slate-900');
+                            e.currentTarget.querySelector('.check-icon').classList.remove('opacity-0');
+                        }
+                        
+                        this.updateStyleUI();
+                    });
+                });
+            },
+
+            updateStyleUI: function() {
+                const text = document.getElementById('selected-styles-text');
+                const clearBtn = document.getElementById('btn-clear-styles');
+                
+                if (Store.settings.selectedStyles.length > 0) {
+                    const names = Store.settings.selectedStyles.map(id => {
+                        return PRESET_STYLES.find(s => s.id === id).name;
+                    }).join(' + ');
+                    if(text) text.innerText = names;
+                    if(clearBtn) clearBtn.classList.remove('hidden');
+                } else {
+                    if(text) text.innerText = 'None (Default)';
+                    if(clearBtn) clearBtn.classList.add('hidden');
+                }
+            },
+
+            processRawPrompts: function(text) {
+                // Split by newline and clean
+                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length === 0) return;
+
+                const multiplier = Store.settings.imagesPerPrompt;
+                let addedCount = 0;
+
+                lines.forEach(rawPrompt => {
+                    for(let i=0; i<multiplier; i++) {
+                        Store.queue.push({
+                            id: Utils.generateId(),
+                            originalPrompt: rawPrompt,
+                            finalPrompt: this.constructFinalPrompt(rawPrompt),
+                            status: 'waiting', // waiting, generating, completed, failed
+                            resultBase64: null,
+                            error: null,
+                            timestamp: null
+                        });
+                        addedCount++;
+                    }
+                });
+
+                this.renderQueue();
+                this.updateCounters();
+                Utils.showAlert('Success', `Added ${addedCount} tasks to the queue.`);
+            },
+
+            constructFinalPrompt: function(raw) {
+                let parts = [];
+                if (Store.settings.prefix.trim()) parts.push(Store.settings.prefix.trim());
+                
+                parts.push(raw);
+                
+                // Add styles
+                if (Store.settings.selectedStyles.length > 0) {
+                    const styleNames = Store.settings.selectedStyles.map(id => PRESET_STYLES.find(s=>s.id === id).name);
+                    parts.push("Style: " + styleNames.join(', '));
+                }
+
+                if (Store.settings.suffix.trim()) parts.push(Store.settings.suffix.trim());
+                
+                return parts.join(', ');
+            },
+
+            handleFileUpload: function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const ext = file.name.split('.').pop().toLowerCase();
+                const reader = new FileReader();
+
+                reader.onload = (event) => {
+                    const content = event.target.result;
+                    if (ext === 'txt') {
+                        this.processRawPrompts(content);
+                        this.switchView('view-queue');
+                    } else if (ext === 'csv') {
+                        Papa.parse(content, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: (results) => {
+                                // Assume column 'prompt'
+                                const lines = results.data.map(row => row.prompt || Object.values(row)[0]).filter(Boolean);
+                                this.processRawPrompts(lines.join('\n'));
+                                this.switchView('view-queue');
+                            }
+                        });
+                    } else if (ext === 'json') {
+                        try {
+                            const data = JSON.parse(content);
+                            const lines = data.map(item => item.prompt || item).filter(Boolean);
+                            this.processRawPrompts(lines.join('\n'));
+                            this.switchView('view-queue');
+                        } catch(err) {
+                            Utils.showAlert('Error', 'Invalid JSON file.');
+                        }
+                    }
+                };
+                
+                reader.readAsText(file);
+                e.target.value = ''; // Reset input
+            },
+
+            renderQueue: function() {
+                const tbody = document.getElementById('queue-table-body');
+                if(!tbody) return;
+
+                if (Store.queue.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-12 text-center text-slate-500">Queue is empty. Go to Create to add prompts.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = Store.queue.map((item, index) => {
+                    let statusHtml = '';
+                    let actionHtml = '';
+
+                    switch(item.status) {
+                        case 'waiting':
+                            statusHtml = `<span class="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs font-medium">WAITING</span>`;
+                            actionHtml = `<button class="text-slate-400 hover:text-red-400 transition-colors" onclick="App.removeFromQueue('${item.id}')"><i class="fa-solid fa-trash"></i></button>`;
+                            break;
+                        case 'generating':
+                            statusHtml = `<span class="px-2 py-1 bg-blue-900/50 border border-blue-800 text-blue-400 rounded text-xs font-medium flex items-center gap-2 w-fit"><div class="loader w-3 h-3 border-2 border-blue-400 border-b-transparent"></div> GENERATING</span>`;
+                            break;
+                        case 'completed':
+                            statusHtml = `<span class="px-2 py-1 bg-green-900/30 border border-green-800 text-green-400 rounded text-xs font-medium">COMPLETED</span>`;
+                            break;
+                        case 'failed':
+                            statusHtml = `<span class="px-2 py-1 bg-red-900/30 border border-red-800 text-red-400 rounded text-xs font-medium cursor-help" title="${item.error || 'Unknown Error'}">FAILED</span>`;
+                            actionHtml = `<button class="text-slate-400 hover:text-blue-400 transition-colors mr-2" onclick="App.retryQueueItem('${item.id}')" title="Retry"><i class="fa-solid fa-rotate-right"></i></button>`;
+                            break;
+                    }
+
+                    return `
+                        <tr class="hover:bg-slate-800/50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-slate-400">#${String(index+1).padStart(3, '0')}</td>
+                            <td class="px-6 py-4">
+                                <div class="truncate max-w-md" title="${item.finalPrompt}">${item.originalPrompt}</div>
+                                ${Store.settings.prefix || Store.settings.selectedStyles.length ? `<div class="text-[10px] text-slate-500 truncate max-w-md mt-1">Modified: ${item.finalPrompt}</div>` : ''}
+                            </td>
+                            <td class="px-6 py-4">${statusHtml}</td>
+                            <td class="px-6 py-4 text-right">${actionHtml}</td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            removeFromQueue: function(id) {
+                Store.queue = Store.queue.filter(i => i.id !== id);
+                this.renderQueue();
+                this.updateCounters();
+            },
+
+            retryQueueItem: function(id) {
+                const item = Store.queue.find(i => i.id === id);
+                if(item) {
+                    item.status = 'waiting';
+                    item.error = null;
+                    this.renderQueue();
+                }
+            },
+
+            updateCounters: function() {
+                const queueNav = document.getElementById('nav-queue-count');
+                const galleryNav = document.getElementById('nav-gallery-count');
+                
+                const queueTotal = Store.queue.length;
+                const imagesTotal = Store.queue.filter(i => i.status === 'completed').length;
+                
+                if(queueNav) {
+                    if(queueTotal > 0) { queueNav.classList.remove('hidden'); queueNav.innerText = queueTotal; }
+                    else { queueNav.classList.add('hidden'); }
+                }
+                
+                if(galleryNav) {
+                    if(imagesTotal > 0) { galleryNav.classList.remove('hidden'); galleryNav.innerText = imagesTotal; }
+                    else { galleryNav.classList.add('hidden'); }
+                }
+
+                // Update download button counts
+                this.updateGallerySelection();
+            },
+
+            isGenerating: false,
+            
+            startGenerationBatch: async function() {
+                if(this.isGenerating) return;
+                
+                const waitingTasks = Store.queue.filter(i => i.status === 'waiting' || i.status === 'failed');
+                if (waitingTasks.length === 0) {
+                    Utils.showAlert('Notice', 'No waiting tasks in the queue.');
+                    return;
+                }
+
+                this.isGenerating = true;
+                
+                // Show Progress Panel
+                const panel = document.getElementById('queue-progress-panel');
+                if(panel) panel.classList.remove('hidden');
+                
+                const total = Store.queue.length;
+                
+                // Concurrency Pool Worker
+                const maxConcurrent = Store.settings.concurrent || 2;
+                let currentIndex = 0;
+
+                const worker = async () => {
+                    while (currentIndex < Store.queue.length) {
+                        const taskIndex = currentIndex++;
+                        const task = Store.queue[taskIndex];
+                        
+                        if (task.status === 'waiting' || task.status === 'failed') {
+                            await this.generateSingleImage(task);
+                            this.renderQueue();
+                            this.updateProgressUI(total);
+                            this.updateCounters();
+                        }
+                    }
+                };
+
+                // Launch workers
+                const workers = [];
+                for(let i=0; i<maxConcurrent; i++) {
+                    workers.push(worker());
+                }
+
+                await Promise.all(workers);
+                
+                this.isGenerating = false;
+                
+                // Finalize
+                const failed = Store.queue.filter(i => i.status === 'failed').length;
+                const msg = failed > 0 ? `Batch finished with ${failed} errors.` : 'Batch completed successfully!';
+                
+                if(Store.settings.autoDownload && Store.queue.some(i => i.status === 'completed')) {
+                    Utils.showAlert('Batch Finished', msg + ' Auto-download is starting...');
+                    this.downloadAllZIP();
+                } else {
+                    Utils.showAlert('Batch Finished', msg);
+                }
+                
+                this.switchView('view-gallery');
+                this.renderGallery();
+            },
+
+            generateSingleImage: async function(task) {
+                task.status = 'generating';
+                this.renderQueue(); // Update UI to show generating status
+
+                try {
+                    // API Call to Gemini 3.1 Flash Image
+                    const apiKey = Store.settings.apiKey || ""; 
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
+                    
+                    const payload = {
+                        contents: [{
+                            role: 'user',
+                            parts: [{ text: task.finalPrompt }]
+                        }],
+                        generationConfig: {
+                            responseModalities: ['IMAGE'],
+                            imageConfig: { 
+                                aspectRatio: Store.settings.aspectRatio,
+                                numberOfImages: 1 // Keep 1 per API call for stability
+                            }
+                        },
+                    };
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errData = await response.json().catch(()=>({}));
+                        throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const part = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+                    
+                    if (part && part.inlineData && part.inlineData.data) {
+                        task.resultBase64 = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                        task.status = 'completed';
+                        task.timestamp = new Date().toISOString();
+                    } else {
+                        throw new Error("No image data returned from API.");
+                    }
+
+                } catch (error) {
+                    console.error("Generation Error:", error);
+                    task.status = 'failed';
+                    task.error = error.message;
+                }
+            },
+
+            updateProgressUI: function(totalCount) {
+                const completed = Store.queue.filter(i => i.status === 'completed').length;
+                const failed = Store.queue.filter(i => i.status === 'failed').length;
+                const processed = completed + failed;
+                
+                const percent = totalCount === 0 ? 0 : Math.round((processed / totalCount) * 100);
+                
+                document.getElementById('progress-text').innerText = `Processing... ${processed} / ${totalCount}`;
+                document.getElementById('progress-percentage').innerText = `${percent}%`;
+                document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+                
+                document.getElementById('stat-completed').innerText = completed;
+                document.getElementById('stat-failed').innerText = failed;
+            },
+
+            renderGallery: function(filter = 'all') {
+                const grid = document.getElementById('gallery-grid');
+                if(!grid) return;
+
+                let items = Store.queue.filter(i => i.status === 'completed' || i.status === 'failed');
+                
+                if (filter === 'completed') items = items.filter(i => i.status === 'completed');
+                if (filter === 'failed') items = items.filter(i => i.status === 'failed');
+
+                if (items.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full py-20 text-center text-slate-500 bg-slate-800/20 border border-slate-800 border-dashed rounded-2xl">
+                            <i class="fa-solid fa-images text-4xl mb-3 text-slate-600"></i>
+                            <p>No images match the filter or none generated yet.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                grid.innerHTML = items.map((item, index) => {
+                    if (item.status === 'failed') {
+                        return `
+                            <div class="bg-slate-800 border border-red-900/50 rounded-2xl overflow-hidden shadow-lg flex flex-col h-64 justify-center items-center text-center p-4">
+                                <i class="fa-solid fa-triangle-exclamation text-red-500 text-3xl mb-2"></i>
+                                <p class="text-white text-sm font-medium mb-1">Generation Failed</p>
+                                <p class="text-xs text-slate-500 line-clamp-2 mb-3">${item.originalPrompt}</p>
+                                <button onclick="App.retrySingleFromGallery('${item.id}')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded-lg transition-colors">
+                                    <i class="fa-solid fa-rotate-right"></i> Retry
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-lg group relative">
+                            <!-- Checkbox for Selection -->
+                            <div class="absolute top-3 left-3 z-10">
+                                <input type="checkbox" class="gallery-cb w-5 h-5 rounded border-slate-600 bg-slate-900/80 checked:bg-blue-500 cursor-pointer shadow-lg" data-id="${item.id}" onchange="App.updateGallerySelection()">
+                            </div>
+                            
+                            <!-- Image Container -->
+                            <div class="aspect-square bg-slate-900 relative overflow-hidden cursor-pointer" onclick="App.openPreview('${item.id}')">
+                                <img src="${item.resultBase64}" alt="Generated" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                                <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            </div>
+                            
+                            <!-- Info -->
+                            <div class="p-4">
+                                <p class="text-sm text-slate-300 line-clamp-2 mb-3 h-10" title="${item.finalPrompt}">${item.originalPrompt}</p>
+                                <div class="flex justify-between items-center gap-2">
+                                    <button onclick="App.downloadSingle('${item.id}')" class="flex-1 bg-slate-700 hover:bg-blue-600 text-white text-xs font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                                        <i class="fa-solid fa-download"></i> Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            retrySingleFromGallery: async function(id) {
+                const item = Store.queue.find(i => i.id === id);
+                if(item) {
+                    item.status = 'waiting';
+                    this.renderGallery();
+                    this.switchView('view-queue');
+                    this.startGenerationBatch(); // auto restart queue
+                }
+            },
+
+            openPreview: function(id) {
+                const item = Store.queue.find(i => i.id === id);
+                if(!item || !item.resultBase64) return;
+
+                const modal = document.getElementById('preview-modal');
+                document.getElementById('preview-image-element').src = item.resultBase64;
+                document.getElementById('preview-prompt-text').innerText = item.finalPrompt;
+                document.getElementById('preview-meta').innerText = `Generated: ${new Date(item.timestamp).toLocaleString()}`;
+                
+                // Update button bindings via cloning (safe replacement)
+                const btnDL = document.getElementById('btn-preview-download');
+                const newBtnDL = btnDL.cloneNode(true);
+                btnDL.parentNode.replaceChild(newBtnDL, btnDL);
+                newBtnDL.addEventListener('click', () => this.downloadSingle(id));
+
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            },
+
+            toggleGallerySelection: function() {
+                const checkboxes = document.querySelectorAll('.gallery-cb');
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                checkboxes.forEach(cb => cb.checked = !allChecked);
+                this.updateGallerySelection();
+            },
+
+            updateGallerySelection: function() {
+                const selectedCount = document.querySelectorAll('.gallery-cb:checked').length;
+                const btn = document.getElementById('btn-download-selected');
+                const countSpan = document.getElementById('download-selected-count');
+                
+                if (btn && countSpan) {
+                    if (selectedCount > 0) {
+                        btn.classList.remove('hidden');
+                        btn.classList.add('flex');
+                        countSpan.innerText = `Download (${selectedCount})`;
+                    } else {
+                        btn.classList.add('hidden');
+                        btn.classList.remove('flex');
+                    }
+                }
+            },
+
+            downloadSingle: function(id) {
+                const item = Store.queue.find(i => i.id === id);
+                if(!item || !item.resultBase64) return;
+                
+                const link = document.createElement('a');
+                link.href = item.resultBase64;
+                link.download = `debby-${Utils.cleanFilename(item.originalPrompt)}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+
+            downloadSelectedZIP: async function() {
+                const selectedIds = Array.from(document.querySelectorAll('.gallery-cb:checked')).map(cb => cb.dataset.id);
+                if(selectedIds.length === 0) return;
+                
+                const itemsToDownload = Store.queue.filter(i => selectedIds.includes(i.id) && i.resultBase64);
+                await this.createAndDownloadZIP(itemsToDownload, 'Selected_Images');
+            },
+
+            downloadAllZIP: async function() {
+                const itemsToDownload = Store.queue.filter(i => i.status === 'completed' && i.resultBase64);
+                if(itemsToDownload.length === 0) {
+                    Utils.showAlert('Info', 'No completed images to download.');
+                    return;
+                }
+                await this.createAndDownloadZIP(itemsToDownload, 'All_Images');
+            },
+
+            createAndDownloadZIP: async function(items, suffixName) {
+                if(typeof JSZip === 'undefined') {
+                    Utils.showAlert('Error', 'ZIP library failed to load. Check your internet connection.');
+                    return;
+                }
+
+                // UI Progress
+                const panel = document.getElementById('download-progress-panel');
+                const text = document.getElementById('dl-progress-text');
+                const bar = document.getElementById('dl-progress-bar-fill');
+                
+                if(panel) panel.classList.remove('hidden');
+                if(text) text.innerText = `Zipping ${items.length} images...`;
+                if(bar) bar.style.width = '10%';
+
+                try {
+                    const zip = new JSZip();
+                    const folder = zip.folder("DEBBY_AUTOMATION_FLOW");
+                    
+                    let processed = 0;
+                    items.forEach((item, index) => {
+                        // Extract base64 data correctly (remove data:image/png;base64,)
+                        const base64Data = item.resultBase64.split(',')[1];
+                        const filename = `${String(index+1).padStart(3, '0')}-${Utils.cleanFilename(item.originalPrompt)}.png`;
+                        
+                        folder.file(filename, base64Data, {base64: true});
+                        processed++;
+                        
+                        // Fake progress update
+                        if(bar) bar.style.width = `${10 + (processed/items.length)*40}%`;
+                    });
+
+                    if(text) text.innerText = 'Compressing file...';
+
+                    const content = await zip.generateAsync({
+                        type: "blob",
+                        compression: "STORE" // Faster generation, PNGs are already compressed
+                    });
+
+                    if(bar) bar.style.width = '100%';
+                    if(text) text.innerText = 'Download starting...';
+
+                    // Trigger Download
+                    const url = window.URL.createObjectURL(content);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `DEBBY_AUTOMATION_FLOW_${suffixName}.zip`;
+                    document.body.appendChild(link);
+                    link.click();
+                    
+                    // Cleanup
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                        if(panel) panel.classList.add('hidden');
+                    }, 2000);
+
+                } catch (err) {
+                    console.error("ZIP Error:", err);
+                    Utils.showAlert('Export Error', 'Failed to create ZIP file.');
+                    if(panel) panel.classList.add('hidden');
+                }
+            }
+        };
+
+        // --- 4. LAUNCH ---
+        window.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+
+    </script>
+</body>
+</html>
